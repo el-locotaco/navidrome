@@ -23,29 +23,24 @@ A full-featured, containerized music server ecosystem optimized for a Raspberry 
 
 Ensure the following local structure exists or update the paths in `docker-compose.yml` to match your storage setup:
 
-```text
-.
-├── docker-compose.yml
-├── lb-m3u-sync/
-│   ├── Dockerfile
-│   └── sync.py
-├── data/                       # Navidrome database & cache
-├── plugins/                    # Navidrome plugins
-├── lidarr-config/              # Lidarr configuration
-├── prowlarr-config/            # Prowlarr configuration
-├── slskd-config/               # slskd appdata
-├── picard-config/              # Picard configuration
-├── czkawka-config/             # Czkawka configuration
-├── audiomuse-redis-data/       # Redis database files
-└── audiomuse-postgres-data/    # Postgres database files
+* **`docker-compose.yml`**: Main stack definition
+* **`lb-m3u-sync/`**: Sync script host folder
+  * **`Dockerfile`**: Image build file
+  * **`sync.py`**: Sync logic script
+* **`data/`**: Navidrome database & cache
+* **`plugins/`**: Navidrome plugins
+* **`lidarr-config/`**: Lidarr configuration
+* **`prowlarr-config/`**: Prowlarr configuration
+* **`slskd-config/`**: slskd appdata
+* **`picard-config/`**: Picard configuration
+* **`czkawka-config/`**: Czkawka configuration
+* **`audiomuse-redis-data/`**: Redis database files
+* **`audiomuse-postgres-data/`**: Postgres database files
 
-```
-
-External storage mounts (e.g., SSD mounted at `/mnt/music_ssd`):
-
-* `/mnt/music_ssd/Music`: Primary music library.
-* `/mnt/music_ssd/Music/Playlists`: Generated `.m3u` playlists.
-* `/mnt/music_ssd/Music/blackhole`: Watch folder for automated downloads.
+### External Storage Mounts
+* **`/mnt/music_ssd/Music`**: Primary music library.
+* **`/mnt/music_ssd/Music/Playlists`**: Generated `.m3u` playlists.
+* **`/mnt/music_ssd/Music/blackhole`**: Watch folder for automated downloads.
 
 ---
 
@@ -60,14 +55,15 @@ External storage mounts (e.g., SSD mounted at `/mnt/music_ssd`):
 ## Quick Start
 
 1. **Clone the repository:**
+
 ```bash
 git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
 cd YOUR_REPO_NAME
 
 ```
 
-
-2. **Configure Environment Variables:** Open `docker-compose.yml` and update all placeholders matching `YOUR_*_HERE`:
+2. **Configure Environment Variables:**
+Open `docker-compose.yml` and update all placeholders matching `YOUR_*_HERE`:
 * `ND_LASTFM_APIKEY` / `ND_LASTFM_SECRET`: Last.fm API keys for artist metadata.
 * `SLSKD_USERNAME` / `SLSKD_PASSWORD`: Admin login for slskd web interface.
 * `SLSKD_SLSK_USERNAME` / `SLSKD_SLSK_PASSWORD`: Soulseek network account credentials.
@@ -76,20 +72,20 @@ cd YOUR_REPO_NAME
 * `LIDARR_API_KEY`: API key generated inside Lidarr (*Settings -> General -> API Key*).
 
 
-3. **Set permissions:** Ensure user ID `1000:1000` owns the mounted directories:
+3. **Set permissions:**
+Ensure user ID `1000:1000` owns the mounted directories:
+
 ```bash
 sudo chown -R 1000:1000 /mnt/music_ssd/Music ./data ./plugins
 
 ```
 
-
 4. **Build and start containers:**
+
 ```bash
 docker compose up -d --build
 
 ```
-
-
 
 ---
 
@@ -122,11 +118,11 @@ The included sync container runs a loop every 6 hours:
 ## Troubleshooting & Maintenance
 
 * **Check Logs:**
+
 ```bash
 docker compose logs -f [service_name]
 
 ```
-
 
 * **Force Navidrome Rescan:** Log into Navidrome, navigate to **Settings**, and trigger a **Quick Scan** or **Full Scan**.
 * **Lidarr API Key Location:** Retrieve or regenerate via `http://<PI_IP>:8686` -> *Settings -> General -> API Key*.
