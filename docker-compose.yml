@@ -7,10 +7,11 @@ services:
       - "4533:4533"
     restart: unless-stopped
     environment:
-      - ND_LASTFM_APIKEY="YOUR_LASTFM_API_KEY_HERE"
-      - ND_LASTFM_SECRET="YOUR_LASTFM_SECRET_HERE"
+      - ND_LASTFM_APIKEY=${ND_LASTFM_APIKEY}
+      - ND_LASTFM_SECRET=${ND_LASTFM_SECRET}
       - ND_COVERARTPRIORITY=embedded
       - ND_SCANNER_PURGEMISSING=full
+      - ND_SCANNER_GROUPALBUMRELEASES=true
       - ND_PLUGINS_ENABLED=true
       - ND_PLUGINS_AUTORELOAD=true
       - ND_PLUGINS_FOLDER=/data/plugins
@@ -51,6 +52,23 @@ services:
       - "9696:9696"
     restart: unless-stopped
 
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      - WEBUI_PORT=8080
+    volumes:
+      - ./qbittorrent-config:/config
+      - /mnt/music_ssd/Music:/music
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    restart: unless-stopped
+
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
@@ -66,10 +84,10 @@ services:
     container_name: slskd
     environment:
       - SLSKD_REMOTE_CONFIGURATION=true
-      - SLSKD_USERNAME="YOUR_USERNAME_HERE"
-      - SLSKD_PASSWORD="YOUR_PASSWORD_HERE"
-      - SLSKD_SLSK_USERNAME="YOUR_SLSK_USERNAME_HERE"
-      - SLSKD_SLSK_PASSWORD="YOUR_SLSK_PASSWORD_HERE"
+      - SLSKD_USERNAME=${SLSKD_USERNAME}
+      - SLSKD_PASSWORD=${SLSKD_PASSWORD}
+      - SLSKD_SLSK_USERNAME=${SLSKD_SLSK_USERNAME}
+      - SLSKD_SLSK_PASSWORD=${SLSKD_SLSK_PASSWORD}
       - SLSKD_DOWNLOADS_DIR=/music
       - TZ=America/Chicago
     volumes:
@@ -125,9 +143,9 @@ services:
     container_name: audiomuse-postgres
     environment:
       - TZ=America/Chicago
-      - POSTGRES_USER="YOUR_POSTGRES_USER_HERE"
-      - POSTGRES_PASSWORD="YOUR_POSTGRES_PASSWORD_HERE"
-      - POSTGRES_DB=audiomusedb
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - ./audiomuse-postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -140,9 +158,9 @@ services:
     environment:
       - SERVICE_TYPE=flask
       - TZ=America/Chicago
-      - POSTGRES_USER="YOUR_POSTGRES_USER_HERE"
-      - POSTGRES_PASSWORD="YOUR_POSTGRES_PASSWORD_HERE"
-      - POSTGRES_DB=audiomusedb
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_HOST=audiomuse-postgres
       - POSTGRES_PORT=5432
       - REDIS_URL=redis://audiomuse-redis:6379/0
@@ -161,9 +179,9 @@ services:
     environment:
       - SERVICE_TYPE=worker
       - TZ=America/Chicago
-      - POSTGRES_USER="YOUR_POSTGRES_USER_HERE"
-      - POSTGRES_PASSWORD="YOUR_POSTGRES_PASSWORD_HERE"
-      - POSTGRES_DB=audiomusedb
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_HOST=audiomuse-postgres
       - POSTGRES_PORT=5432
       - REDIS_URL=redis://audiomuse-redis:6379/0
@@ -182,9 +200,9 @@ services:
     container_name: listenbrainz-sync
     environment:
       - TZ=America/Chicago
-      - LISTENBRAINZ_USERNAME="YOUR_LISTENBRAINZ_USERNAME_HERE"
+      - LISTENBRAINZ_USERNAME=${LISTENBRAINZ_USERNAME}
       - LIDARR_URL=http://lidarr:8686
-      - LIDARR_API_KEY="YOUR_LIDARR_API_KEY_HERE"
+      - LIDARR_API_KEY=${LIDARR_API_KEY}
     volumes:
       - ./lb-m3u-sync:/app
       - /mnt/music_ssd/Music:/music:ro
