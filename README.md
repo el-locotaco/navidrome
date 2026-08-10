@@ -1,174 +1,135 @@
 ```markdown
-# Media & Automation Stack
+# Raspberry Pi Navidrome & Automated Music Stack
 
-This Docker Compose setup deploys a self-hosted media server and automation pipeline for music management, indexing, downloading, tagging, deduplication, AI features, and playlist synchronization.
-
----
-
-## Architecture Overview
-
-
-```
-
-```
-                  ┌─────────────────────────────────┐
-                  │    /mnt/music_ssd/Music         │
-                  └────────────────┬────────────────┘
-                                   │
- ┌───────────────────┬─────────────┼─────────────┬───────────────────┐
- ▼                   ▼             ▼             ▼                   ▼
-
-```
-
-┌───────────┐      ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────────────┐
-│ Navidrome │      │  Lidarr   │  │qBittorrent│  │   slskd   │  │ ListenBrainz Sync │
-└─────┬─────┘      └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └───────────────────┘
-│                  │              │              │
-▼                  ▼              │              │
-┌───────────┐      ┌───────────┐        │              │
-│ AudioMuse │      │ Prowlarr  │◄───────┴──────────────┘
-└───────────┘      └─────┬─────┘
-│
-▼
-┌───────────┐
-│FlareSolve │
-└───────────┘
-
-```
+A full-featured, containerized music server ecosystem optimized for a Raspberry Pi or single-board computer running Docker. This stack automates music streaming, downloading, metadata management, AI recommendation enrichment, and playlist synchronization.
 
 ---
 
-## Services & Ports
+## Features & Included Services
 
-| Container | Service | Host Port | Internal Port | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `navidrome` | Navidrome | `4533` | `4533` | Music server & Subsonic API |
-| `lidarr` | Lidarr | `8686` | `8686` | Music management & automation |
-| `prowlarr` | Prowlarr | `9696` | `9696` | Indexer manager for Arrs |
-| `qbittorrent` | qBittorrent | `8080`, `6881` | `8080`, `6881` | Torrent client (Web UI & BitTorrent) |
-| `flaresolverr` | FlareSolverr | `8191` | `8191` | Cloudflare bypass proxy for indexers |
-| `slskd` | slskd | `5030`, `5031`, `2242` | `5030`, `5031`, `2242` | Soulseek daemon & Web UI |
-| `picard` | MusicBrainz Picard | `5800` | `5800` | GUI music tagger (Web UI via VNC) |
-| `czkawka` | Czkawka | `5801` | `5800` | Duplicate file finder (Web UI via VNC) |
-| `audiomuse-ai-flask` | AudioMuse AI | `8000` | `8000` | AI-driven music analysis API |
-| `audiomuse-ai-worker` | AudioMuse Worker | N/A | N/A | Background processing for AudioMuse |
-| `audiomuse-redis` | Redis | Dynamic | `6379` | Queue broker for AudioMuse |
-| `audiomuse-postgres` | PostgreSQL | Dynamic | `5432` | Database for AudioMuse |
-| `listenbrainz-sync` | LB Sync | N/A | N/A | Synchronizes ListenBrainz to M3U |
+* **Navidrome** (`:4533`): Lightweight, high-performance music server and streamer compatible with Subsonic apps.
+* **Lidarr** (`:8686`): Automated music library manager and downloader.
+* **Prowlarr** (`:9696`): Indexer proxy and manager for the *Arr stack.
+* **FlareSolverr** (`:8191`): Cloudflare bypass proxy for web scraping and indexers.
+* **slskd** (`:5030`): Web-based Soulseek client for direct P2P music downloads.
+* **MusicBrainz Picard** (`:5800`): Web GUI for manual and automated audio tagging.
+* **Czkawka** (`:5801`): Web UI tool to scan and remove duplicate audio files.
+* **AudioMuse-AI Stack** (`:8000`): Self-hosted AI music discovery/recommendation engine backed by PostgreSQL and Redis.
+* **ListenBrainz Sync**: Custom daemon script that syncs user "Created For" playlists from ListenBrainz into local `.m3u` format and automatically requests missing artists via Lidarr.
 
 ---
 
-## Shared Volumes & Storage Layout
+## Directory Structure
 
-All applications operate on a shared host volume (`/mnt/music_ssd/Music`) to prevent cross-filesystem copies and facilitate hardlinking across services.
+Ensure the following local structure exists or update the paths in `docker-compose.yml` to match your storage setup:
 
+```text
+.
+├── docker-compose.yml
+├── lb-m3u-sync/
+│   ├── Dockerfile
+│   └── sync.py
+├── data/                       # Navidrome database & cache
+├── plugins/                    # Navidrome plugins
+├── lidarr-config/              # Lidarr configuration
+├── prowlarr-config/            # Prowlarr configuration
+├── slskd-config/               # slskd appdata
+├── picard-config/              # Picard configuration
+├── czkawka-config/             # Czkawka configuration
+├── audiomuse-redis-data/       # Redis database files
+└── audiomuse-postgres-data/    # Postgres database files
 
 ```
 
-/mnt/music_ssd/Music/
-├── Playlists/          # Exported M3U/M3U8 playlists
-├── blackhole/          # Drop directory for automatic import
-└── [Artist]/[Album]/   # Main structured music directory
+External storage mounts (e.g., SSD mounted at `/mnt/music_ssd`):
 
-```
+* `/mnt/music_ssd/Music`: Primary music library.
+* `/mnt/music_ssd/Music/Playlists`: Generated `.m3u` playlists.
+* `/mnt/music_ssd/Music/blackhole`: Watch folder for automated downloads.
 
 ---
 
-## Prerequisites & Installation
+## Prerequisites
 
-### 1. Create Local Directory Structure
+* **OS**: Raspberry Pi OS 64-bit, Ubuntu, or any Debian-based distribution.
+* **Docker & Docker Compose v2**: Installed and running.
+* **Storage**: External SSD formatted as `ext4` or `exFAT` recommended for library storage.
 
-Run the following command to ensure all bound host paths exist before starting containers:
+---
 
+## Quick Start
+
+1. **Clone the repository:**
 ```bash
-mkdir -p /mnt/music_ssd/Music/blackhole /mnt/music_ssd/Music/Playlists \
-         data plugins lidarr-config prowlarr-config qbittorrent-config \
-         slskd-config picard-config czkawka-config \
-         audiomuse-redis-data audiomuse-postgres-data \
-         audiomuse-temp-flask audiomuse-plugins-flask \
-         audiomuse-temp-worker audiomuse-plugins-worker \
-         lb-m3u-sync
+git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
+cd YOUR_REPO_NAME
 
 ```
 
-### 2. Configure Environment Variables (`.env`)
 
-Create a `.env` file in the same directory as `docker-compose.yml`:
+2. **Configure Environment Variables:** Open `docker-compose.yml` and update all placeholders matching `YOUR_*_HERE`:
+* `ND_LASTFM_APIKEY` / `ND_LASTFM_SECRET`: Last.fm API keys for artist metadata.
+* `SLSKD_USERNAME` / `SLSKD_PASSWORD`: Admin login for slskd web interface.
+* `SLSKD_SLSK_USERNAME` / `SLSKD_SLSK_PASSWORD`: Soulseek network account credentials.
+* `POSTGRES_USER` / `POSTGRES_PASSWORD`: Database credentials for AudioMuse-AI.
+* `LISTENBRAINZ_USERNAME`: ListenBrainz profile handle to pull playlists from.
+* `LIDARR_API_KEY`: API key generated inside Lidarr (*Settings -> General -> API Key*).
 
-```ini
-# --- Navidrome ---
-ND_LASTFM_APIKEY=1e201a94ea849c63137452060d954703
-ND_LASTFM_SECRET=e03aa0e2c7dd85663a35d364abaeecd1
 
-# --- slskd ---
-SLSKD_USERNAME=pedram
-SLSKD_PASSWORD=@BlackeyeS1
-SLSKD_SLSK_USERNAME=pedram
-SLSKD_SLSK_PASSWORD=@BlackeyeS1
-
-# --- AudioMuse PostgreSQL ---
-POSTGRES_USER=audiomuse
-POSTGRES_PASSWORD=audiomusepassword
-POSTGRES_DB=audiomusedb
-
-# --- ListenBrainz Sync ---
-LISTENBRAINZ_USERNAME=pedramibiza
-LIDARR_API_KEY=e8cde872088441bf9286b8f5923e5967
+3. **Set permissions:** Ensure user ID `1000:1000` owns the mounted directories:
+```bash
+sudo chown -R 1000:1000 /mnt/music_ssd/Music ./data ./plugins
 
 ```
 
----
 
-## Operational Commands
-
-### Launch the Stack
-
-Build custom images (like `listenbrainz-sync`) and launch all containers in background mode:
-
+4. **Build and start containers:**
 ```bash
 docker compose up -d --build
 
 ```
 
-### View Logs
 
-Monitor logs across all services:
-
-```bash
-docker compose logs -f
-
-```
-
-Monitor logs for a specific service:
-
-```bash
-docker compose logs -f navidrome
-
-```
-
-### Restart a Service
-
-```bash
-docker compose restart lidarr
-
-```
-
-### Tear Down the Stack
-
-Stop containers without destroying persistent volumes:
-
-```bash
-docker compose down
-
-```
 
 ---
 
-## Service Configuration Details
+## Port Map Summary
 
-* **Navidrome**: Set to scan `/music` every hour (`1h`). Transcoding configuration enabled. Plugins enabled via `/data/plugins`.
-* **slskd**: Pre-configured to output downloads directly into `/mnt/music_ssd/Music` and watch the `blackhole` folder.
-* **ListenBrainz Sync**: Containerized python utility targeting local Lidarr and Navidrome APIs for automated playlist generation from ListenBrainz user data (`pedramibiza`).
+| Service | Port | Description |
+| --- | --- | --- |
+| **Navidrome** | `4533` | Music Web Interface & Subsonic API |
+| **Lidarr** | `8686` | Music Automation & Monitoring |
+| **Prowlarr** | `9696` | Torrent/Usenet Indexer Manager |
+| **FlareSolverr** | `8191` | Cloudflare Bypass Service |
+| **slskd** | `5030` | Soulseek Web Client |
+| **MusicBrainz Picard** | `5800` | Browser GUI for Music Tagging |
+| **Czkawka** | `5801` | Browser GUI for Duplicate Cleaning |
+| **AudioMuse-AI** | `8000` | AI Recommendation Service |
+
+---
+
+## ListenBrainz Sync Service (`lb-m3u-sync`)
+
+The included sync container runs a loop every 6 hours:
+
+1. Fetches personalized "Created For" playlists from the ListenBrainz API.
+2. Checks local storage for matching track files.
+3. Generates relative `.m3u` files in `/playlists` for Navidrome to load.
+4. If a track is missing locally, it pushes the artist to **Lidarr** via REST API to search and download automatically.
+
+---
+
+## Troubleshooting & Maintenance
+
+* **Check Logs:**
+```bash
+docker compose logs -f [service_name]
+
+```
+
+
+* **Force Navidrome Rescan:** Log into Navidrome, navigate to **Settings**, and trigger a **Quick Scan** or **Full Scan**.
+* **Lidarr API Key Location:** Retrieve or regenerate via `http://<PI_IP>:8686` -> *Settings -> General -> API Key*.
 
 ```
 
