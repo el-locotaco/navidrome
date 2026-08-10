@@ -1,0 +1,195 @@
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    user: 1000:1000
+    ports:
+      - "4533:4533"
+    restart: unless-stopped
+    environment:
+      - ND_LASTFM_APIKEY="YOUR_LASTFM_API_KEY_HERE"
+      - ND_LASTFM_SECRET="YOUR_LASTFM_SECRET_HERE"
+      - ND_COVERARTPRIORITY=embedded
+      - ND_SCANNER_PURGEMISSING=full
+      - ND_PLUGINS_ENABLED=true
+      - ND_PLUGINS_AUTORELOAD=true
+      - ND_PLUGINS_FOLDER=/data/plugins
+      - ND_SCANSCHEDULE=1h
+      - ND_LOGLEVEL=info
+      - ND_SESSIONTIMEOUT=24h
+      - ND_ENABLETRANSCODINGCONFIG=true
+    volumes:
+      - ./data:/data
+      - ./plugins:/data/plugins
+      - /mnt/music_ssd/Music:/music:ro
+
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - ./lidarr-config:/config
+      - /mnt/music_ssd/Music:/music
+      - /mnt/music_ssd/Music/blackhole:/blackhole
+    ports:
+      - "8686:8686"
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - ./prowlarr-config:/config
+    ports:
+      - "9696:9696"
+    restart: unless-stopped
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - TZ=America/Chicago
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+
+  slskd:
+    image: slskd/slskd:latest
+    container_name: slskd
+    environment:
+      - SLSKD_REMOTE_CONFIGURATION=true
+      - SLSKD_USERNAME="YOUR_USERNAME_HERE"
+      - SLSKD_PASSWORD="YOUR_PASSWORD_HERE"
+      - SLSKD_SLSK_USERNAME="YOUR_SLSK_USERNAME_HERE"
+      - SLSKD_SLSK_PASSWORD="YOUR_SLSK_PASSWORD_HERE"
+      - SLSKD_DOWNLOADS_DIR=/music
+      - TZ=America/Chicago
+    volumes:
+      - ./slskd-config:/app/appdata
+      - /mnt/music_ssd/Music:/music
+      - /mnt/music_ssd/Music/blackhole:/blackhole
+    ports:
+      - "5030:5030"
+      - "5031:5031"
+      - "2242:2242"
+    restart: unless-stopped
+
+  picard:
+    image: jlesage/musicbrainz-picard:latest
+    container_name: picard
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - ./picard-config:/config
+      - /mnt/music_ssd/Music:/storage
+    ports:
+      - "5800:5800"
+    restart: unless-stopped
+
+  czkawka:
+    image: jlesage/czkawka:latest
+    container_name: czkawka
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - ./czkawka-config:/config
+      - /mnt/music_ssd/Music:/storage
+    ports:
+      - "5801:5800"
+    restart: unless-stopped
+
+  # --- AudioMuse-AI Stack ---
+  audiomuse-redis:
+    image: redis:7-alpine
+    container_name: audiomuse-redis
+    environment:
+      - TZ=America/Chicago
+    volumes:
+      - ./audiomuse-redis-data:/data
+    restart: unless-stopped
+
+  audiomuse-postgres:
+    image: postgres:15-alpine
+    container_name: audiomuse-postgres
+    environment:
+      - TZ=America/Chicago
+      - POSTGRES_USER="YOUR_POSTGRES_USER_HERE"
+      - POSTGRES_PASSWORD="YOUR_POSTGRES_PASSWORD_HERE"
+      - POSTGRES_DB=audiomusedb
+    volumes:
+      - ./audiomuse-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  audiomuse-ai-flask:
+    image: ghcr.io/neptunehub/audiomuse-ai:latest
+    container_name: audiomuse-ai-flask
+    ports:
+      - "8000:8000"
+    environment:
+      - SERVICE_TYPE=flask
+      - TZ=America/Chicago
+      - POSTGRES_USER="YOUR_POSTGRES_USER_HERE"
+      - POSTGRES_PASSWORD="YOUR_POSTGRES_PASSWORD_HERE"
+      - POSTGRES_DB=audiomusedb
+      - POSTGRES_HOST=audiomuse-postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://audiomuse-redis:6379/0
+      - TEMP_DIR=/app/temp_audio
+    volumes:
+      - ./audiomuse-temp-flask:/app/temp_audio
+      - ./audiomuse-plugins-flask:/app/plugin/installed
+    depends_on:
+      - audiomuse-redis
+      - audiomuse-postgres
+    restart: unless-stopped
+
+  audiomuse-ai-worker:
+    image: ghcr.io/neptunehub/audiomuse-ai:latest
+    container_name: audiomuse-ai-worker
+    environment:
+      - SERVICE_TYPE=worker
+      - TZ=America/Chicago
+      - POSTGRES_USER="YOUR_POSTGRES_USER_HERE"
+      - POSTGRES_PASSWORD="YOUR_POSTGRES_PASSWORD_HERE"
+      - POSTGRES_DB=audiomusedb
+      - POSTGRES_HOST=audiomuse-postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://audiomuse-redis:6379/0
+      - TEMP_DIR=/app/temp_audio
+    volumes:
+      - ./audiomuse-temp-worker:/app/temp_audio
+      - ./audiomuse-plugins-worker:/app/plugin/installed
+    depends_on:
+      - audiomuse-redis
+      - audiomuse-postgres
+    restart: unless-stopped
+
+  # --- ListenBrainz Sync Service ---
+  listenbrainz-sync:
+    build: ./lb-m3u-sync
+    container_name: listenbrainz-sync
+    environment:
+      - TZ=America/Chicago
+      - LISTENBRAINZ_USERNAME="YOUR_LISTENBRAINZ_USERNAME_HERE"
+      - LIDARR_URL=http://lidarr:8686
+      - LIDARR_API_KEY="YOUR_LIDARR_API_KEY_HERE"
+    volumes:
+      - ./lb-m3u-sync:/app
+      - /mnt/music_ssd/Music:/music:ro
+      - /mnt/music_ssd/Music/Playlists:/playlists
+    depends_on:
+      - lidarr
+      - navidrome
+    restart: unless-stopped
